@@ -1,0 +1,225 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl" id="htmlRoot">
+<head>
+<meta charset="UTF-8">
+<title>AI Studio Pro</title>
+<style>
+  :root {
+    --bg-main: #04142c;
+    --box-bg: rgba(8, 28, 58, 0.94);
+    --accent: #4da6ff;
+    --accent-glow: rgba(77, 166, 255, 0.35);
+    --sub-text: #8cc4ff;
+  }
+  * { box-sizing: border-box; user-select: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
+  body {
+    margin: 0; padding: 0; background: var(--bg-main); color: #fff;
+    height: 100vh; width: 100vw; overflow: hidden; display: flex; flex-direction: column;
+  }
+
+  .views-container { flex: 1; width: 100%; height: 100%; position: relative; background: #090d16; }
+  webview { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; border: none; }
+  webview.active { display: flex; }
+
+  .floating-launcher {
+    position: fixed; bottom: 20px; left: 25px; z-index: 99999;
+    display: flex; flex-direction: column; align-items: flex-start;
+  }
+
+  .menu-box {
+    width: 350px; background: var(--box-bg); backdrop-filter: blur(22px);
+    border: 1px solid var(--accent); border-radius: 16px; padding: 14px; margin-bottom: 10px;
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.85), inset 0 0 15px var(--accent-glow);
+    display: none;
+  }
+  body.pure-mode .menu-box { background: rgba(5, 12, 25, 0.60) !important; backdrop-filter: blur(30px); }
+
+  .top-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--accent-glow);
+  }
+  .current-status { font-size: 12px; font-weight: 700; color: var(--sub-text); }
+  .toolbar-icons { display: flex; gap: 5px; }
+  .tool-btn {
+    background: rgba(255,255,255,0.1); border: 1px solid var(--accent-glow);
+    color: #fff; border-radius: 7px; padding: 4px 8px; font-size: 11px; font-weight: 700; cursor: pointer;
+  }
+  .tool-btn:hover, .tool-btn.active { background: var(--accent); color: #000; }
+
+  .search-input {
+    width: 100%; padding: 8px 10px; background: rgba(0,0,0,0.45);
+    border: 1px solid var(--accent-glow); border-radius: 8px; color: #fff; font-size: 12px; margin-bottom: 10px; outline: none;
+  }
+
+  .models-scroll { max-height: 260px; overflow-y: auto; padding: 0 4px; margin-bottom: 10px; }
+  .models-scroll::-webkit-scrollbar { width: 4px; }
+  .models-scroll::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
+
+  .provider-header {
+    display: flex; justify-content: space-between; font-size: 10px; font-weight: 700;
+    color: var(--sub-text); margin: 10px 4px 5px 4px; padding-bottom: 3px; border-bottom: 1px solid var(--accent-glow);
+  }
+
+  .model-item {
+    padding: 8px 10px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 4px; border: 1px solid transparent; transition: 0.15s;
+  }
+  .model-item:hover { background: rgba(255,255,255,0.08); }
+  .model-item.selected { background: var(--accent-glow); border-color: var(--accent); }
+
+  .badge { font-size: 9px; padding: 2px 6px; border-radius: 5px; background: rgba(255,255,255,0.15); color: #fff; }
+  .badge.pro { background: #10b981; color: #000; font-weight: 800; }
+  .badge.open { background: #f59e0b; color: #000; font-weight: 800; }
+
+  .color-dots { display: none; gap: 8px; justify-content: center; margin-bottom: 10px; padding: 6px; background: rgba(0,0,0,0.3); border-radius: 8px; }
+  .dot { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid #fff; }
+
+  .floating-controls { display: flex; gap: 8px; align-items: center; }
+  .icon-btn {
+    height: 42px; padding: 0 14px; background: rgba(8, 28, 58, 0.92); backdrop-filter: blur(12px);
+    border: 1px solid var(--accent); border-radius: 10px; color: #fff;
+    display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 700;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.6); transition: 0.2s;
+  }
+  .icon-btn:hover { background: var(--accent); color: #000; }
+</style>
+</head>
+<body>
+
+<div class="views-container">
+  <webview id="view_gemini1" class="active" src="https://gemini.google.com/app" partition="persist:gemini_1" allowpopups></webview>
+  <webview id="view_gemini2" src="https://gemini.google.com/app" partition="persist:gemini_2" allowpopups></webview>
+  <webview id="view_gemini3" src="https://gemini.google.com/app" partition="persist:gemini_3" allowpopups></webview>
+  <webview id="view_chatgpt" src="https://chatgpt.com/" partition="persist:chatgpt_main" allowpopups></webview>
+  <webview id="view_claude" src="https://claude.ai/new" partition="persist:claude_main" allowpopups></webview>
+  <webview id="view_bolt" src="https://bolt.new/" partition="persist:bolt_main" allowpopups></webview>
+</div>
+
+<div class="floating-launcher">
+  <div class="menu-box" id="menuBox">
+    <div class="top-bar">
+      <div class="current-status" id="headerStatus">Using Gemini Pro (حساب 1)</div>
+      <div class="toolbar-icons">
+        <button class="tool-btn" id="pureBtn" onclick="togglePure()" title="وضع الشفافية">💎</button>
+        <button class="tool-btn" onclick="toggleColors()" title="الألوان">🎨</button>
+        <button class="tool-btn" id="langBtn" onclick="toggleLang()">EN</button>
+      </div>
+    </div>
+
+    <div class="color-dots" id="colorBar">
+      <div class="dot" style="background:#0b4a8b;" onclick="setTheme('#04142c','rgba(8,28,58,0.94)','#4da6ff')"></div>
+      <div class="dot" style="background:#4a154b;" onclick="setTheme('#1a0524','rgba(42,10,56,0.94)','#d966ff')"></div>
+      <div class="dot" style="background:#064e3b;" onclick="setTheme('#021f18','rgba(6,55,42,0.94)','#10b981')"></div>
+      <div class="dot" style="background:#7f1d1d;" onclick="setTheme('#240606','rgba(60,12,12,0.94)','#f87171')"></div>
+      <div class="dot" style="background:#18181b;" onclick="setTheme('#09090b','rgba(24,24,27,0.95)','#a1a1aa')"></div>
+    </div>
+
+    <input type="text" class="search-input" id="searchInput" placeholder="ابحث عن حسابك أو النموذج..." oninput="filterModels()">
+
+    <div class="models-scroll">
+      <div class="provider-header"><span>GOOGLE (حساباتك الـ 3 برو + الشات القديم)</span><span>3</span></div>
+      <div class="model-item selected" onclick="switchAccount(this, 'view_gemini1', 'Gemini 3.1 Pro (حساب 1)')">
+        <span>Gemini 3.1 Pro (الإيميل الأول)</span><span class="badge pro">PRO 1</span>
+      </div>
+      <div class="model-item" onclick="switchAccount(this, 'view_gemini2', 'Gemini 3.8 Flash (حساب 2)')">
+        <span>Gemini 3.8 Flash (الإيميل الثاني)</span><span class="badge pro">PRO 2</span>
+      </div>
+      <div class="model-item" onclick="switchAccount(this, 'view_gemini3', 'Gemini 4 Argon (حساب 3)')">
+        <span>Gemini 4 Argon (الإيميل الثالث)</span><span class="badge pro">PRO 3</span>
+      </div>
+
+      <div class="provider-header"><span>OPENAI (اشتراكك المدفوع + الشات القديم)</span><span>1</span></div>
+      <div class="model-item" onclick="switchAccount(this, 'view_chatgpt', 'GPT 6.1 Sol (ChatGPT)')">
+        <span>GPT 6.1 Sol (حسابك الرسمي)</span><span class="badge pro">PLUS</span>
+      </div>
+
+      <div class="provider-header"><span>ANTHROPIC & CODE (المونتاج وصفحات الهبوط)</span><span>2</span></div>
+      <div class="model-item" onclick="switchAccount(this, 'view_claude', 'Claude Opus 5.5')">
+        <span>Claude Opus 5.5 (حساب كلود)</span><span class="badge">CLAUDE</span>
+      </div>
+      <div class="model-item" onclick="switchAccount(this, 'view_bolt', 'Bolt.new Studio')">
+        <span>⚡ Bolt.new (صفحات هبوط وأكواد لايف)</span><span class="badge open">FREE/OPEN</span>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--sub-text); padding-top:4px; border-top:1px solid var(--accent-glow);">
+      <span style="cursor:pointer;" onclick="reloadCurrentView()">🔄 تحديث الصفحة</span>
+      <span style="cursor:pointer;" onclick="copyMontagePrompt()">🎬 نسخ أمر مونتاج Flow + MP3</span>
+    </div>
+  </div>
+
+  <div class="floating-controls">
+    <div class="icon-btn" onclick="toggleMenu()">
+      <span>🎚️</span>
+      <span id="floatingLabel">Gemini 3.1 Pro (حساب 1)</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentViewId = 'view_gemini1';
+  let isMenuOpen = false;
+  let currentLang = 'ar';
+
+  function toggleMenu() {
+    isMenuOpen = !isMenuOpen;
+    document.getElementById('menuBox').style.display = isMenuOpen ? 'block' : 'none';
+  }
+
+  function switchAccount(el, viewId, title) {
+    document.querySelectorAll('webview').forEach(v => v.classList.remove('active'));
+    document.getElementById(viewId).classList.add('active');
+    currentViewId = viewId;
+
+    document.querySelectorAll('.model-item').forEach(item => item.classList.remove('selected'));
+    el.classList.add('selected');
+
+    document.getElementById('headerStatus').textContent = 'Using ' + title;
+    document.getElementById('floatingLabel').textContent = title;
+    toggleMenu();
+  }
+
+  function reloadCurrentView() {
+    const v = document.getElementById(currentViewId);
+    if (v) v.reload();
+  }
+
+  function copyMontagePrompt() {
+    const prompt = "أريد منك كتابة سكريبت مونتاج احترافي كامل يدمج مشاهد الفيديو المولدة مع ملف الموسيقى الخلفية MP3، مع ضبط مستوى صوت الموسيقى الخلفية ليكون هادئاً ومتناسقاً وإضافة انتقالات سينمائية ناعمة بين المشاهد.";
+    navigator.clipboard.writeText(prompt);
+    alert("تم نسخ أمر المونتاج! الصقه الآن في الشات أمامك وارفع معه ملفات الفيديو والـ MP3.");
+  }
+
+  function toggleColors() {
+    const bar = document.getElementById('colorBar');
+    bar.style.display = bar.style.display === 'flex' ? 'none' : 'flex';
+  }
+
+  function setTheme(bgMain, boxBg, accent) {
+    document.documentElement.style.setProperty('--bg-main', bgMain);
+    document.documentElement.style.setProperty('--box-bg', boxBg);
+    document.documentElement.style.setProperty('--accent', accent);
+    document.documentElement.style.setProperty('--accent-glow', accent + '55');
+  }
+
+  function togglePure() {
+    document.body.classList.toggle('pure-mode');
+    document.getElementById('pureBtn').classList.toggle('active');
+  }
+
+  function toggleLang() {
+    currentLang = currentLang === 'ar' ? 'en' : 'ar';
+    document.getElementById('htmlRoot').setAttribute('dir', currentLang === 'ar' ? 'rtl' : 'ltr');
+    document.getElementById('langBtn').textContent = currentLang === 'ar' ? 'EN' : 'عربي';
+  }
+
+  function filterModels() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    document.querySelectorAll('.model-item').forEach(item => {
+      item.style.display = item.textContent.toLowerCase().includes(q) ? 'flex' : 'none';
+    });
+  }
+</script>
+</body>
+</html>
